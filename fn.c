@@ -5,6 +5,7 @@
 #include <time.h>
 #define  EULER 2.718281
 int n;
+//int** adj;
 
 double exp(double ex){
     return pow(EULER, ex);
@@ -34,10 +35,10 @@ int choice(){
 void vector_make(int*** mat,int n)
 {
      // make vector 
-    (*mat)=malloc(n*sizeof(double*));
+    (*mat)=malloc(n*sizeof(int*));
     for(int i=0;i<n;i++)
     {  
-        (*mat)[i]=malloc(sizeof(double)*n);
+        (*mat)[i]=malloc(sizeof(int)*n);
         for(int j=0;j<n;j++)
         {   
             //printf("making\n");
@@ -57,37 +58,59 @@ int neighbor(int** mat, int ki, int kj, int n){
         adj+=mat[ki][kj+1];
     return adj;
 }
+int adj(int** mat,int ki,int kj,int n){
+    int tar;
+    int** adj;
+    adj=malloc(sizeof(int*)*n);
+    for (int i = 0; i < n; i++)
+    {
+        adj[i]=malloc(sizeof(int)*n);
+        for (int j = 0; j < n; j++)
+        {
+            adj[i][j]=neighbor(mat,i,j,n);
+        }
+    }
+    tar=adj[ki][kj];
+
+    for (int i = 0; i < n; i++)
+    {
+        free(adj[i]);
+    }
+    free(adj);
+    return tar;
+}
 void markov_ising_anneal(int*** mat,int n, int times, int thread){
     int ki,kj;
-    double E=0;
+    int E=0;
     double B=0.01;
     int h;
-    double del_E;
+    int del_E;
     double gamma;
     int i;
-  # pragma omp parallel for num_threads(thread)\
-   private(i) schedule(dynamic,2) 
-   
+  
+   # pragma omp parallel for num_threads(thread)\
+    private(i) schedule(static,2) 
    for (i = 0; i < times; i++) {
     //srand(time(NULL));
     ki=floor(n*(double)rand()/ (double)RAND_MAX);
     kj=floor(n*(double)rand()/ (double)RAND_MAX);
-    h=neighbor((*mat),ki, kj, n);
+    h=adj((*mat),ki, kj, n);
     del_E=2*h*(*mat)[ki][kj];
     gamma=exp(-B*del_E);
     srandom(i*time(NULL));
-    //# pragma omp atomic
+        //# pragma omp atomic
     if(((double)rand()/ (double)RAND_MAX)<gamma){
-        
-            (*mat)[ki][kj]=-1*(*mat)[ki][kj];
-            //# pragma omp atomic
-            E+=del_E;
+            
+                (*mat)[ki][kj]=-1*(*mat)[ki][kj];
+                //# pragma omp atomic
+                E+=del_E;
     }
-    //# pragma omp atomic
+        //# pragma omp atomic
     B=1.00005*B;
+    }
    
-   }
 }
+
 
 void Usage(char prog_name[] /* in */) {
    fprintf(stderr, "usage: %s ", prog_name); 
@@ -148,6 +171,9 @@ int main(int argc, char* argv[])
     elapsed=(end.tv_nsec-begin.tv_nsec)/1e9+(end.tv_sec-begin.tv_sec);
     print_mat(mat,n,"after_omp.pgm");
     printf("Elapsed time: %f\n",elapsed);
+    for (int i=0; i<n;i++){
+        free(mat[n]);
+    }
     free(mat);
     return 0;
 }

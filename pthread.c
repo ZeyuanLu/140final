@@ -7,7 +7,7 @@
 int** mat;
 int n,load;
 int times;
-int E=0;
+double E=0;
 double B=0.01;
 pthread_mutex_t mutex;
 struct timespec begin, end;
@@ -69,11 +69,33 @@ int neighbor(int** mat, int ki, int kj, int n){
     return adj;
 }
 
+int adj(int** mat,int ki,int kj,int n){
+    int tar;
+    int** adj;
+    adj=malloc(sizeof(int*)*n);
+    for (int i = 0; i < n; i++)
+    {
+        adj[i]=malloc(sizeof(int)*n);
+        for (int j = 0; j < n; j++)
+        {
+            adj[i][j]=neighbor(mat,i,j,n);
+        }
+    }
+    tar=adj[ki][kj];
+
+    for (int i = 0; i < n; i++)
+    {
+        free(adj[i]);
+    }
+    free(adj);
+    return tar;
+}
+
 
 void* markov_ising_anneal(void* rank){
     int ki,kj;
     int h;
-    int del_E;
+    double del_E;
     double gamma;
     long thread_num=(long)rank;
     long i;
@@ -84,13 +106,13 @@ void* markov_ising_anneal(void* rank){
     ki=floor(n*(double)rand()/ (double)RAND_MAX);
     kj=floor(n*(double)rand()/ (double)RAND_MAX);
     // printf("%d %d\n",ki,kj);
-    h=neighbor(mat,ki, kj, n);
+    pthread_mutex_lock(&mutex);
+    h=adj(mat,ki, kj, n);
     del_E=2*h*mat[ki][kj];
     gamma=exp(-B*del_E);
     // printf("%d %d %d %d %f\n",ki,kj,h,del_E,gamma);
     srandom(thread_num*time(NULL));
     // printf("thread:%ld,%f\n",thread_num,((double)rand()/ (double)RAND_MAX));
-    pthread_mutex_lock(&mutex);
     if(((double)rand()/ (double)RAND_MAX)<gamma){
             // printf("%ld\n",thread_num);
             mat[ki][kj]=-1*mat[ki][kj];
@@ -167,6 +189,10 @@ int main(int argc, char* argv[])
     // -1 as white, 1 as black
     print_mat(mat,n,"after_pthread.pgm");
     printf("Elapsed time: %f\n", elapsed);
+    for (int i = 0; i < n; i++)
+    {
+        free(mat[i]);
+    }
     free(mat);
     return 0;
 }
